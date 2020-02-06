@@ -34,7 +34,7 @@ spec:
     spec:
       containers:
       - name: portal
-        image: quay.io/appvia/kore-ui:latest
+        image: quay.io/appvia/kore-ui:v0.0.2
         imagePullPolicy: Always
         env:
           - name: HUB_API_URL
