@@ -17,5 +17,7 @@
  * along with kore-apiserver.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-// Package gke contains gke API versions.
-package gke
+// Package v1alpha1 contains API Schema definitions for the GCP v1alpha1 API group
+// +k8s:deepcopy-gen=package,register
+// +groupName=gcp.compute.kore.appvia.io
+package v1alpha1
