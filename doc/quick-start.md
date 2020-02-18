@@ -62,13 +62,13 @@ By defining a korectl configuration file in `$HOME/.korectl/config`
 server: http://127.0.0.1:10080
 ```
 
-Is all that is required, you can then do a auth flow to the API server, which will then authorise using either a Defined IDP or Dex if you are using the Demo.
+Is all that is required, you can then do an auth flow to the API server, which will authorise using the defined IDP.
 
 ```
 ./bin/korectl auth
 ```
 
-Once authenticated, There are several configuration files, which can be found in: `examples` directory:
+Once authenticated, there are several configuration files, which can be found in: `examples` directory:
 
 1. `credentials.yml` : Which is used to define the service account credential for GKE, this will require a Role for GKE in order to work inside of a project.
 ```
@@ -82,8 +82,7 @@ The above will need replacing with the region, project name and the service acco
 
 2. `allocation.yml` : This is responsible for allocating the Cloud credential to one or more defined teams. To allow it allocatable to every team, this can be left as a wildcard
 
-3. `gke-cluster.yml` : This dfines the shape of the kubernetes clusters, these are essential settings for GKE. You can create many of these with different names i.e. `gke-cluster-dev.yml` and `gke-prod.yml` , make sure to change
-
+3. `gke-cluster.yml` : This defines the shape of the kubernetes clusters, these are essential settings for GKE. You can create many of these with different names i.e. `gke-cluster-dev.yml` and `gke-prod.yml` , make sure to change
 
 ### Provisioning a team cluster
 
