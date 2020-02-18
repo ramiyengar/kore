@@ -29,7 +29,7 @@ Before continuing with Kore, you will need:
 
 We will be enabling quick configuration of your cloud provider to reduce the barrier for entry in getting going with Kore, but this is to come!
 
-If you don't have any of the above, [please read the pre-reqs document](pre-req.md)
+If you don't have any of the above, please read the [pre-req](pre-req.md) document
 
 ### Running Kore
 
