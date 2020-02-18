@@ -29,7 +29,7 @@ Before continuing with Kore, you will need:
 
 We will be enabling quick configuration of your cloud provider to reduce the barrier for entry in getting going with Kore, but this is to come!
 
-If you don't have any of the above, [please read the pre-reqs document](pre-reqs.md)
+If you don't have any of the above, [please read the pre-reqs document](pre-req.md)
 
 ### Running Kore
 
@@ -41,12 +41,6 @@ This will run several components using docker compose:
 + Kore API
 + Redis
 + Kore Web frontend
-
-```shell
-KORE_CLIENT_ID: <YOUR_CLIENT_ID>
-KORE_CLIENT_SECRET: <YOUR_CLIENT_SECRET>
-KORE_DISCOVERY_URL: <OPENID_ENDPOINT>
-```
 
 To launch the Kore server, from the root directory, run
 
