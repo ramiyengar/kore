@@ -21,7 +21,7 @@ Kore enables teams to provision clusters. Supported cloud providers include:
 ### What is required?
 
 Before continuing with Kore, you will need:
-+ Docker: install instructions can be found [here]([https://docs.docker.com/install/](https://docs.docker.com/install/))
++ Docker: install instructions can be found [here](https://docs.docker.com/install/)
 + Docker Compose: installation instructions can found [here](https://docs.docker.com/compose/install/)
 + A cloud account, (GCP currently)
 + A service account with GKE permissions
