@@ -22,6 +22,7 @@ package register
 import (
 	// importing the cloud providers
 	_ "github.com/appvia/kore/pkg/controllers/cloud/aws/eks"
+	_ "github.com/appvia/kore/pkg/controllers/cloud/gcp/gcpprojectclaim"
 	_ "github.com/appvia/kore/pkg/controllers/cloud/gcp/gke"
 	_ "github.com/appvia/kore/pkg/controllers/cloud/gcp/gkecredentials"
 

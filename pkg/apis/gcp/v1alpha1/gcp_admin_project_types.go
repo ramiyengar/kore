@@ -1,7 +1,7 @@
 package v1alpha1
 
 import (
-	core "github.com/appvia/hub-apis/pkg/apis/core/v1"
+	core "github.com/appvia/kore/pkg/apis/core/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -10,11 +10,11 @@ import (
 // +k8s:openapi-gen=true
 type GCPAdminProjectSpec struct {
 	// Project is the GCP project ID
-	// +kubebuilder:validation:Minimum=3
+	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Required
 	Project string `json:"project"`
 	// ProjectName is the GCP project name
-	// +kubebuilder:validation:Minimum=3
+	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Required
 	ProjectName string `json:"projectName"`
 	// ParentType is the type of parent this project has
@@ -22,16 +22,18 @@ type GCPAdminProjectSpec struct {
 	// +kubebuilder:validation:Enum=organization;folder;project
 	// +kubebuilder:validation:Required
 	ParentType string `json:"parentType"`
-	// ParentId is the type specific ID of the parent this project has
+	// ParentID is the type specific ID of the parent this project has
+	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Required
-	ParentId string `json:"parentId"`
+	ParentID string `json:"parentID"`
 	// BillingAccountName is the resource name of the billing account associated with the project
 	// e.g. '012345-567890-ABCDEF'
+	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Required
 	BillingAccountName string `json:"billingAccountName"`
 	// ServiceAccountName is the name used when creating the service account
 	// e.g. 'hub-admin'
-	// +kubebuilder:validation:Minimum=3
+	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Required
 	ServiceAccountName string `json:"serviceAccountName"`
 	// Credentials is a reference to the gcp token object to use
@@ -47,7 +49,7 @@ type GCPAdminProjectStatus struct {
 	// +listType
 	Conditions []core.Condition `json:"conditions,omitempty"`
 	// Status provides a overall status
-	Status core.Status `json:"status"`
+	Status core.Status `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
