@@ -28,7 +28,6 @@ import (
 	"github.com/appvia/kore/pkg/utils/kubernetes"
 
 	log "github.com/sirupsen/logrus"
-	cloudbilling "google.golang.org/api/cloudbilling/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -38,7 +37,7 @@ const (
 	finalizerName = "gcp-project-claims.kore.appvia.io"
 )
 
-// Reconcile is the entrypoint for the reconcilation logic
+// Reconcile is the entrypoint for the reconciliation logic
 func (t ctrl) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	ctx := context.Background()
 
@@ -69,70 +68,72 @@ func (t ctrl) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	}
 
 	result, err := func() (reconcile.Result, error) {
-		// @step: we check if the gcp organization has been allocated to us
+		// @step: ensure the project has access to the org
+		if err := t.EnsurePermitted(ctx, project); err != nil {
+			logger.WithError(err).Error("checking if project has permission to gcp organization")
 
-		// @step: retrieve the gcp organization
-		org := &gcp.GCPAdminProject{}
-
-		// @step: check if the admin project exists and if successful
-		if org.Status.Status != corev1.SuccessStatus {
-			project.Status.Status = corev1.FailureStatus
-			project.Status.Conditions.SetCondition(corev1.Component{
-				Name:    "provision",
-				Message: "GCP Admin Project is in a failing state, cannot provision projects",
-				Status:  corev1.FailureStatus,
-			})
-
-			return reconcile.Result{RequeueAfter: 2 * time.Minute}, nil
+			return reconcile.Result{}, err
 		}
 
+		// @step: ensure thr project has not been claimed already
 		if err := t.EnsureUnclaimed(ctx, project); err != nil {
 			logger.WithError(err).Error("checking if project is claimed")
 
 			return reconcile.Result{}, err
 		}
 
-		// @step: create a gcp projects client from the org credentials
-		client, err := newClient()
+		// @step: ensure the gcp organization
+		org, err := t.EnsureOrganization(ctx, project)
 		if err != nil {
-			logger.WithError(err).Error("trying to create a gcp client")
+			logger.WithError(err).Error("trying to retrieve the gcp organization")
+
+			return reconcile.Result{RequeueAfter: 2 * time.Minute}, err
+		}
+
+		// @step: we need to grab the credentials from the organization and create clients
+		secret, err := t.EnsureOrganizationCredentials(ctx, org, project)
+		if err != nil {
+			logger.WithError(err).Error("trying to retrieve the gcp organization")
 
 			return reconcile.Result{}, err
 		}
-		var billing *cloudbilling.APIService
 
-		if err := t.EnsureProject(ctx, client, org, project); err != nil {
+		// @step: ensure the project is created
+		if err := t.EnsureProject(ctx, secret, org, project); err != nil {
 			logger.WithError(err).Error("trying to ensure the project")
 
 			return reconcile.Result{}, err
 		}
 
 		// @step: ensure the project is linked to the billing account
-		if err := t.EnsureBilling(ctx, billing, org, project); err != nil {
+		if err := t.EnsureBilling(ctx, secret, org, project); err != nil {
 			logger.WithError(err).Error("trying to ensure the billing account it linked")
 
 			return reconcile.Result{}, err
 		}
 		// @step: ensure the project apis are enabled
-		if err := t.EnsureAPIs(ctx, nil, project); err != nil {
+		if err := t.EnsureAPIs(ctx, secret, project); err != nil {
 			logger.WithError(err).Error("trying to toggle the apis in the project")
 
 			return reconcile.Result{}, err
 		}
 
 		// @step: ensure the service account in the project
-		if err := t.EnsureServiceAccount(ctx, nil, project); err != nil {
+		if err := t.EnsureServiceAccount(ctx, secret, project); err != nil {
 			logger.WithError(err).Error("trying to enable the service account in project")
 
 			return reconcile.Result{}, err
 		}
 
 		// @step: ensure the service account key in the project
-		if err := t.EnsureServiceAccountKey(ctx); err != nil {
+		key, err := t.EnsureServiceAccountKey(ctx, secret, org, project)
+		if err != nil {
 			logger.WithError(err).Error("trying to ensure the service account key")
 
 			return reconcile.Result{}, err
 		}
+
+		// @step: we need to mint the GKE credentials for them
 
 		project.Status.Status = corev1.SuccessStatus
 

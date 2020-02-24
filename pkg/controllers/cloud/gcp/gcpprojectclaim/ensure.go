@@ -26,14 +26,76 @@ import (
 
 	corev1 "github.com/appvia/kore/pkg/apis/core/v1"
 	gcp "github.com/appvia/kore/pkg/apis/gcp/v1alpha1"
+	gke "github.com/appvia/kore/pkg/apis/gke/v1alpha1"
 	"github.com/appvia/kore/pkg/utils"
+	"github.com/appvia/kore/pkg/utils/kubernetes"
 
 	log "github.com/sirupsen/logrus"
 	cloudbilling "google.golang.org/api/cloudbilling/v1"
 	cloudresourcemanager "google.golang.org/api/cloudresourcemanager/v1"
 	iam "google.golang.org/api/iam/v1"
+	"google.golang.org/api/option"
 	servicemanagement "google.golang.org/api/servicemanagement/v1"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
+
+// EnsurePermitted is responsible for checking the project has access to the credentials
+func (t ctrl) EnsurePermitted(ctx context.Context, project *gcp.GCPProjectClaim) error {
+	// @step: we check if the gcp organization has been allocated to us
+	permitted, err := t.Teams().Team(project.Namespace).Allocations().IsPermitted(ctx, project.Spec.Organization)
+	if err != nil {
+		return err
+	}
+	if !permitted {
+		project.Status.Conditions.SetCondition(corev1.Component{
+			Name:    "provision",
+			Message: "GCP Organization has not been allocated to you",
+			Status:  corev1.FailureStatus,
+		})
+
+		return errors.New("gcp organization has not been allocated to team")
+	}
+
+	return nil
+}
+
+// EnsureOrganization is responsible for checking and retrieving the gcp org
+func (t ctrl) EnsureOrganization(ctx context.Context, project *gcp.GCPProjectClaim) (*gcp.GCPAdminProject, error) {
+	org := &gcp.GCPAdminProject{}
+
+	key := types.NamespacedName{
+		Namespace: project.Spec.Organization.Namespace,
+		Name:      project.Spec.Organization.Name,
+	}
+
+	if err := t.mgr.GetClient().Get(ctx, key, org); err != nil {
+		project.Status.Conditions.SetCondition(corev1.Component{
+			Name:    "provision",
+			Detail:  err.Error(),
+			Message: "Attempting to retrieve the GCP Organization resources from API",
+			Status:  corev1.FailureStatus,
+		})
+
+		return nil, err
+	}
+
+	// @step: check if the admin project exists and if successful
+	if org.Status.Status != corev1.SuccessStatus {
+		project.Status.Conditions.SetCondition(corev1.Component{
+			Name:    "provision",
+			Detail:  "resource is in failing state",
+			Message: "GCP Admin Project is in a failing state, cannot provision projects",
+			Status:  corev1.FailureStatus,
+		})
+
+		return nil, errors.New("admin project still provisioning or failed")
+	}
+
+	return org, nil
+
+}
 
 // EnsureUnclaimed is responsible for making sure the project is unclaimed
 func (t ctrl) EnsureUnclaimed(ctx context.Context, project *gcp.GCPProjectClaim) error {
@@ -72,9 +134,44 @@ func (t ctrl) EnsureUnclaimed(ctx context.Context, project *gcp.GCPProjectClaim)
 	return nil
 }
 
+// EnsureOrganizationCredentials is responsible for retrieving the credentials
+func (t ctrl) EnsureOrganizationCredentials(ctx context.Context, org *gcp.GCPAdminProject, project *gcp.GCPProjectClaim) (*v1.Secret, error) {
+	// @TODO we probably shouldn't rely on the parent name here
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      org.Name,
+			Namespace: org.Namespace,
+		},
+	}
+
+	found, err := kubernetes.GetIfExists(ctx, t.mgr.GetClient(), secret)
+	if err != nil {
+		project.Status.Conditions.SetCondition(corev1.Component{
+			Name:    "provision",
+			Detail:  err.Error(),
+			Message: "Attempting to retrieve the GCP Organization credentials",
+			Status:  corev1.FailureStatus,
+		})
+
+		return nil, err
+	}
+	if !found {
+		project.Status.Conditions.SetCondition(corev1.Component{
+			Name:    "provision",
+			Detail:  "credentials not found",
+			Message: "GCP Organization credentials either not provisioned or failed",
+			Status:  corev1.FailureStatus,
+		})
+
+		return nil, errors.New("credentials not found")
+	}
+
+	return secret, nil
+}
+
 // EnsureProject is responsible for ensuring the project is there
 func (t ctrl) EnsureProject(ctx context.Context,
-	client *cloudresourcemanager.Service,
+	credentials *v1.Secret,
 	org *gcp.GCPAdminProject,
 	project *gcp.GCPProjectClaim) error {
 
@@ -82,6 +179,22 @@ func (t ctrl) EnsureProject(ctx context.Context,
 		"project": project.Name,
 		"team":    project.Namespace,
 	})
+	stage := "provision"
+
+	// @step: create the client
+	client, err := cloudresourcemanager.NewService(ctx, option.WithCredentialsJSON(credentials.Data["key"]))
+	if err != nil {
+		logger.WithError(err).Error("trying to create the cloud resource client")
+
+		project.Status.Conditions.SetCondition(corev1.Component{
+			Name:    stage,
+			Detail:  err.Error(),
+			Message: "Failed to create a projects client, please check credentials",
+			Status:  corev1.FailureStatus,
+		})
+
+		return err
+	}
 
 	// @step: we check if the project exists and if not create it
 	_, found, err := IsProject(ctx, client, project.Name)
@@ -107,6 +220,13 @@ func (t ctrl) EnsureProject(ctx context.Context,
 	if err != nil {
 		logger.WithError(err).Error("trying to create the gcp project")
 
+		project.Status.Conditions.SetCondition(corev1.Component{
+			Name:    stage,
+			Detail:  err.Error(),
+			Message: "Unable to request the project in GCP",
+			Status:  corev1.FailureStatus,
+		})
+
 		return err
 	}
 
@@ -128,7 +248,7 @@ func (t ctrl) EnsureProject(ctx context.Context,
 		return true, nil
 	}); err != nil {
 		project.Status.Conditions.SetCondition(corev1.Component{
-			Name:    "provision",
+			Name:    stage,
 			Detail:  err.Error(),
 			Message: "Unable to provision project in GCP",
 			Status:  corev1.FailureStatus,
@@ -141,8 +261,9 @@ func (t ctrl) EnsureProject(ctx context.Context,
 }
 
 // EnsureBilling is responsible for ensuring the billing account
-func (t ctrl) EnsureBilling(ctx context.Context,
-	client *cloudbilling.APIService,
+func (t ctrl) EnsureBilling(
+	ctx context.Context,
+	credentials *v1.Secret,
 	organization *gcp.GCPAdminProject,
 	project *gcp.GCPProjectClaim) error {
 
@@ -150,8 +271,16 @@ func (t ctrl) EnsureBilling(ctx context.Context,
 		"project": project.Name,
 		"team":    project.Namespace,
 	})
+	stage := "billing"
 
 	err := func() error {
+		client, err := cloudbilling.NewService(ctx, option.WithCredentialsJSON(credentials.Data["key"]))
+		if err != nil {
+			logger.WithError(err).Error("trying to create cloud resource client")
+
+			return err
+		}
+
 		resp, err := client.Projects.GetBillingInfo(project.Name).Context(ctx).Do()
 		if err != nil {
 			logger.WithError(err).Error("trying to retrieve the billing details for account")
@@ -184,7 +313,7 @@ func (t ctrl) EnsureBilling(ctx context.Context,
 	}()
 	if err != nil {
 		project.Status.Conditions.SetCondition(corev1.Component{
-			Name:    "billing",
+			Name:    stage,
 			Detail:  err.Error(),
 			Message: "Failed to link the billing account to project",
 			Status:  corev1.FailureStatus,
@@ -194,7 +323,7 @@ func (t ctrl) EnsureBilling(ctx context.Context,
 	}
 
 	project.Status.Conditions.SetCondition(corev1.Component{
-		Name:    "billing",
+		Name:    stage,
 		Message: "GCP Project has been linked billing account",
 		Status:  corev1.SuccessStatus,
 	})
@@ -203,14 +332,27 @@ func (t ctrl) EnsureBilling(ctx context.Context,
 }
 
 // EnsureAPIs is responsible for ensuing the apis are enabled in the account
-func (t ctrl) EnsureAPIs(ctx context.Context,
-	client *servicemanagement.APIService,
-	project *gcp.GCPProjectClaim) error {
+func (t ctrl) EnsureAPIs(ctx context.Context, credentials *v1.Secret, project *gcp.GCPProjectClaim) error {
+	stage := "iam"
 
 	logger := log.WithFields(log.Fields{
 		"project": project.Name,
 		"team":    project.Namespace,
 	})
+
+	client, err := servicemanagement.NewService(ctx, option.WithCredentialsJSON(credentials.Data["key"]))
+	if err != nil {
+		logger.WithError(err).Error("trying to create the service management client")
+
+		project.Status.Conditions.SetCondition(corev1.Component{
+			Name:    stage,
+			Detail:  err.Error(),
+			Message: "Failed to create the service management client, please check credentials",
+			Status:  corev1.FailureStatus,
+		})
+
+		return err
+	}
 
 	for _, name := range t.GetRequiredAPI() {
 		logger.WithField(
@@ -226,7 +368,7 @@ func (t ctrl) EnsureAPIs(ctx context.Context,
 			logger.WithError(err).Error("trying to enable the api")
 
 			project.Status.Conditions.SetCondition(corev1.Component{
-				Name:    "apis",
+				Name:    stage,
 				Detail:  err.Error(),
 				Message: "Failed to enable " + name + " api in the project",
 				Status:  corev1.FailureStatus,
@@ -255,7 +397,7 @@ func (t ctrl) EnsureAPIs(ctx context.Context,
 			logger.WithError(err).Error("waiting on the api enabling operation")
 
 			project.Status.Conditions.SetCondition(corev1.Component{
-				Name:    "apis",
+				Name:    stage,
 				Detail:  err.Error(),
 				Message: "Failed to enable " + name + " api in the project",
 				Status:  corev1.FailureStatus,
@@ -266,7 +408,7 @@ func (t ctrl) EnsureAPIs(ctx context.Context,
 	}
 
 	project.Status.Conditions.SetCondition(corev1.Component{
-		Name:    "apis",
+		Name:    stage,
 		Message: "Successfully enabled all the APIs in project",
 		Status:  corev1.SuccessStatus,
 	})
@@ -275,10 +417,8 @@ func (t ctrl) EnsureAPIs(ctx context.Context,
 }
 
 // EnsureServiceAccount is responsible for creating the service account in the project
-func (t ctrl) EnsureServiceAccount(ctx context.Context,
-	client *iam.Service,
-	project *gcp.GCPProjectClaim) error {
-
+func (t ctrl) EnsureServiceAccount(ctx context.Context, credentials *v1.Secret, project *gcp.GCPProjectClaim) error {
+	stage := "iam"
 	account := project.Spec.ServiceAccountName
 	if account == "" {
 		account = t.DefaultServiceAccountName()
@@ -291,6 +431,14 @@ func (t ctrl) EnsureServiceAccount(ctx context.Context,
 	})
 
 	err := func() error {
+		// @step: create the iam client
+		client, err := iam.NewService(ctx, option.WithCredentialsJSON(credentials.Data["key"]))
+		if err != nil {
+			logger.WithError(err).Error("trying to create the client")
+
+			return err
+		}
+
 		// @step: ensure the service account exists in the project
 		list, err := client.Projects.ServiceAccounts.List(account).Context(ctx).Do()
 		if err != nil {
@@ -320,7 +468,7 @@ func (t ctrl) EnsureServiceAccount(ctx context.Context,
 		logger.WithError(err).Error("attempting to provision the service account")
 
 		project.Status.Conditions.SetCondition(corev1.Component{
-			Name:    "iam",
+			Name:    stage,
 			Detail:  err.Error(),
 			Message: "Failed to provision the IAM credentials in the project",
 			Status:  corev1.FailureStatus,
@@ -330,7 +478,7 @@ func (t ctrl) EnsureServiceAccount(ctx context.Context,
 	}
 
 	project.Status.Conditions.SetCondition(corev1.Component{
-		Name:    "iam",
+		Name:    stage,
 		Message: "Successfully provision the IAM in project",
 		Status:  corev1.SuccessStatus,
 	})
@@ -339,8 +487,98 @@ func (t ctrl) EnsureServiceAccount(ctx context.Context,
 }
 
 // EnsureServiceAccountKey is responsible for ensuring the account key exists
-func (t ctrl) EnsureServiceAccountKey(ctx context.Context) error {
-	return nil
+func (t ctrl) EnsureServiceAccountKey(
+	ctx context.Context,
+	credentials *v1.Secret,
+	organization *gcp.GCPAdminProject,
+	project *gcp.GCPProjectClaim) error {
+
+	stage := "permissions"
+
+	account := project.Spec.ServiceAccountName
+	if account == "" {
+		account = t.DefaultServiceAccountName()
+	}
+
+	logger := log.WithFields(log.Fields{
+		"account": account,
+		"project": project.Name,
+		"team":    project.Namespace,
+	})
+	var key *iam.ServiceAccountKey
+
+	err := func() error {
+		// @step: create the iam client
+		client, err := iam.NewService(ctx, option.WithCredentialsJSON(credentials.Data["key"]))
+		if err != nil {
+			logger.WithError(err).Error("trying to create iam client for project")
+
+			return err
+		}
+
+		// @step: check if the service account key exists already
+		list, err := client.Projects.ServiceAccounts.Keys.List(account).Context(ctx).Do()
+		if err != nil {
+			logger.WithError(err).Error("trying to check if service account key exists already")
+
+			return err
+		}
+		if len(list.Keys) > 0 {
+			logger.Debug("service account key exists already, skipping creation")
+			key = list.Keys[0]
+
+			return nil
+		} else {
+			key, err = client.Projects.ServiceAccounts.Keys.Create(account, &iam.CreateServiceAccountKeyRequest{
+				KeyAlgorithm:   "KEY_ALG_RSA_2048",
+				PrivateKeyType: "TYPE_GOOGLE_CREDENTIALS_FILE",
+			}).Context(ctx).Do()
+
+			if err != nil {
+				logger.WithError(err).Error("trying to provision the service account key")
+
+				return err
+			}
+		}
+
+		encoded, err := key.MarshalJSON()
+		if err != nil {
+			logger.WithError(err).Error("trying to marshal the service account key")
+
+			return err
+		}
+
+		// @step: create the gke credentials in the account
+		gkecreds := &gke.GKECredentials{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      project.Name,
+				Namespace: project.Namespace,
+			},
+			Spec: gke.GKECredentialsSpec{
+				Account: key.M,
+			},
+		}
+
+		return nil
+	}()
+	if err != nil {
+		project.Status.Conditions.SetCondition(corev1.Component{
+			Name:    stage,
+			Detail:  err.Error(),
+			Message: "Failed to provision the service account key in the project",
+			Status:  corev1.FailureStatus,
+		})
+
+		return nil, err
+	}
+
+	project.Status.Conditions.SetCondition(corev1.Component{
+		Name:    stage,
+		Message: "Successfully provision the service account in project",
+		Status:  corev1.SuccessStatus,
+	})
+
+	return key, nil
 }
 
 // DefaultServiceAccountName is the default name of the service account
