@@ -52,7 +52,7 @@ func init() {
 
 // Name returns the name of the controller
 func (t *ctrl) Name() string {
-	return "gcp-project"
+	return "gcp-project-claims"
 }
 
 // Run starts the controller

@@ -17,6 +17,8 @@
 // deploy/crds/config.kore.appvia.io_plans.yaml
 // deploy/crds/core.kore.appvia.io_idp.yaml
 // deploy/crds/core.kore.appvia.io_oidclient.yaml
+// deploy/crds/gcp.compute.kore.appvia.io_gcpadminprojects.yaml
+// deploy/crds/gcp.compute.kore.appvia.io_gcpprojectclaim.yaml
 // deploy/crds/gke.compute.kore.appvia.io_gkecredentials.yaml
 // deploy/crds/gke.compute.kore.appvia.io_gkes.yaml
 // deploy/crds/org.kore.appvia.io_auditevents.yaml
@@ -3457,6 +3459,297 @@ func crdsCoreKoreAppviaIo_oidclientYaml() (*asset, error) {
 	return a, nil
 }
 
+var _crdsGcpComputeKoreAppviaIo_gcpadminprojectsYaml = []byte(`
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.5
+  creationTimestamp: null
+  name: gcpadminprojects.gcp.compute.kore.appvia.io
+spec:
+  group: gcp.compute.kore.appvia.io
+  names:
+    kind: GCPAdminProject
+    listKind: GCPAdminProjectList
+    plural: gcpadminprojects
+    singular: gcpadminproject
+  preserveUnknownFields: false
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: GCPAdminProject is the Schema for the gcpadminprojects API
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: GCPAdminProjectSpec defines the desired state of GCPAdminProject
+          properties:
+            billingAccountName:
+              description: BillingAccountName is the resource name of the billing
+                account associated with the project e.g. '012345-567890-ABCDEF'
+              minLength: 1
+              type: string
+            credentials:
+              description: Credentials is a reference to the gcp token object to use
+              properties:
+                group:
+                  description: Group is the api group
+                  type: string
+                kind:
+                  description: Kind is the name of the resource under the group
+                  type: string
+                name:
+                  description: Name is name of the resource
+                  type: string
+                namespace:
+                  description: Namespace is the location of the object
+                  type: string
+                version:
+                  description: Version is the group version
+                  type: string
+              required:
+              - group
+              - kind
+              - name
+              - namespace
+              - version
+              type: object
+            parentID:
+              description: ParentID is the type specific ID of the parent this project
+                has
+              minLength: 1
+              type: string
+            parentType:
+              description: 'ParentType is the type of parent this project has Valid
+                types are: "organization", "folder", and "project"'
+              enum:
+              - organization
+              - folder
+              - project
+              type: string
+            project:
+              description: Project is the GCP project ID
+              minLength: 1
+              type: string
+            projectName:
+              description: ProjectName is the GCP project name
+              minLength: 1
+              type: string
+            serviceAccountName:
+              description: ServiceAccountName is the name used when creating the service
+                account e.g. 'hub-admin'
+              minLength: 1
+              type: string
+          required:
+          - billingAccountName
+          - credentials
+          - parentID
+          - parentType
+          - project
+          - projectName
+          - serviceAccountName
+          type: object
+        status:
+          description: GCPAdminProjectStatus defines the observed state of GCPAdminProject
+          properties:
+            conditions:
+              description: Conditions is a collection of conditions of errors
+              items:
+                description: Condition is a reason why something failed
+                properties:
+                  detail:
+                    description: Detail is a actual error which might contain technical
+                      reference
+                    type: string
+                  message:
+                    description: Message is a human readable message
+                    type: string
+                required:
+                - detail
+                - message
+                type: object
+              type: array
+              x-kubernetes-list-type: set
+            status:
+              description: Status provides a overall status
+              type: string
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+`)
+
+func crdsGcpComputeKoreAppviaIo_gcpadminprojectsYamlBytes() ([]byte, error) {
+	return _crdsGcpComputeKoreAppviaIo_gcpadminprojectsYaml, nil
+}
+
+func crdsGcpComputeKoreAppviaIo_gcpadminprojectsYaml() (*asset, error) {
+	bytes, err := crdsGcpComputeKoreAppviaIo_gcpadminprojectsYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "crds/gcp.compute.kore.appvia.io_gcpadminprojects.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var _crdsGcpComputeKoreAppviaIo_gcpprojectclaimYaml = []byte(`
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.5
+  creationTimestamp: null
+  name: gcpprojectclaim.gcp.compute.kore.appvia.io
+spec:
+  group: gcp.compute.kore.appvia.io
+  names:
+    kind: GCPProjectClaim
+    listKind: GCPProjectClaimList
+    plural: gcpprojectclaim
+    singular: gcpprojectclaim
+  preserveUnknownFields: false
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: GCPProjectClaim is the Schema for the gcpprojects API
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: GCPProjectClaimSpec defines the desired state of GCPProjectClaim
+          properties:
+            organization:
+              description: Organization is a reference to the gcp admin project to
+                use
+              properties:
+                group:
+                  description: Group is the api group
+                  type: string
+                kind:
+                  description: Kind is the name of the resource under the group
+                  type: string
+                name:
+                  description: Name is name of the resource
+                  type: string
+                namespace:
+                  description: Namespace is the location of the object
+                  type: string
+                version:
+                  description: Version is the group version
+                  type: string
+              required:
+              - group
+              - kind
+              - name
+              - namespace
+              - version
+              type: object
+            serviceAccountName:
+              description: ServiceAccountName is an optional name of the service account
+                provision - else we default to the name kore
+              type: string
+          required:
+          - organization
+          type: object
+        status:
+          description: GCPProjectClaimStatus defines the observed state of GCPProject
+          properties:
+            conditions:
+              description: Conditions is a set of components conditions
+              items:
+                description: Component the state of a component of the resource
+                properties:
+                  detail:
+                    description: Detail is additional details on the error is any
+                    type: string
+                  message:
+                    description: Message is a human readable message on the status
+                      of the component
+                    type: string
+                  name:
+                    description: Name is the name of the component
+                    type: string
+                  status:
+                    description: Status is the status of the component
+                    type: string
+                type: object
+              type: array
+            projectID:
+              description: ProjectID is the GCP project ID
+              type: string
+            status:
+              description: Status provides a overall status
+              type: string
+          required:
+          - status
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+`)
+
+func crdsGcpComputeKoreAppviaIo_gcpprojectclaimYamlBytes() ([]byte, error) {
+	return _crdsGcpComputeKoreAppviaIo_gcpprojectclaimYaml, nil
+}
+
+func crdsGcpComputeKoreAppviaIo_gcpprojectclaimYaml() (*asset, error) {
+	bytes, err := crdsGcpComputeKoreAppviaIo_gcpprojectclaimYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "crds/gcp.compute.kore.appvia.io_gcpprojectclaim.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
 var _crdsGkeComputeKoreAppviaIo_gkecredentialsYaml = []byte(`
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
@@ -4348,6 +4641,8 @@ spec:
               minLength: 1
               type: string
           required:
+          - disabled
+          - email
           - username
           type: object
         status:
@@ -4475,6 +4770,8 @@ var _bindata = map[string]func() (*asset, error){
 	"crds/config.kore.appvia.io_plans.yaml":                               crdsConfigKoreAppviaIo_plansYaml,
 	"crds/core.kore.appvia.io_idp.yaml":                                   crdsCoreKoreAppviaIo_idpYaml,
 	"crds/core.kore.appvia.io_oidclient.yaml":                             crdsCoreKoreAppviaIo_oidclientYaml,
+	"crds/gcp.compute.kore.appvia.io_gcpadminprojects.yaml":               crdsGcpComputeKoreAppviaIo_gcpadminprojectsYaml,
+	"crds/gcp.compute.kore.appvia.io_gcpprojectclaim.yaml":                crdsGcpComputeKoreAppviaIo_gcpprojectclaimYaml,
 	"crds/gke.compute.kore.appvia.io_gkecredentials.yaml":                 crdsGkeComputeKoreAppviaIo_gkecredentialsYaml,
 	"crds/gke.compute.kore.appvia.io_gkes.yaml":                           crdsGkeComputeKoreAppviaIo_gkesYaml,
 	"crds/org.kore.appvia.io_auditevents.yaml":                            crdsOrgKoreAppviaIo_auditeventsYaml,
@@ -4543,6 +4840,8 @@ var _bintree = &bintree{nil, map[string]*bintree{
 		"config.kore.appvia.io_plans.yaml":                               {crdsConfigKoreAppviaIo_plansYaml, map[string]*bintree{}},
 		"core.kore.appvia.io_idp.yaml":                                   {crdsCoreKoreAppviaIo_idpYaml, map[string]*bintree{}},
 		"core.kore.appvia.io_oidclient.yaml":                             {crdsCoreKoreAppviaIo_oidclientYaml, map[string]*bintree{}},
+		"gcp.compute.kore.appvia.io_gcpadminprojects.yaml":               {crdsGcpComputeKoreAppviaIo_gcpadminprojectsYaml, map[string]*bintree{}},
+		"gcp.compute.kore.appvia.io_gcpprojectclaim.yaml":                {crdsGcpComputeKoreAppviaIo_gcpprojectclaimYaml, map[string]*bintree{}},
 		"gke.compute.kore.appvia.io_gkecredentials.yaml":                 {crdsGkeComputeKoreAppviaIo_gkecredentialsYaml, map[string]*bintree{}},
 		"gke.compute.kore.appvia.io_gkes.yaml":                           {crdsGkeComputeKoreAppviaIo_gkesYaml, map[string]*bintree{}},
 		"org.kore.appvia.io_auditevents.yaml":                            {crdsOrgKoreAppviaIo_auditeventsYaml, map[string]*bintree{}},

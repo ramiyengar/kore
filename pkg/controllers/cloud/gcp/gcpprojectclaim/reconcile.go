@@ -42,8 +42,8 @@ func (t ctrl) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	ctx := context.Background()
 
 	logger := log.WithFields(log.Fields{
-		"project": request.NamespacedName.Name,
-		"team":    request.NamespacedName.Namespace,
+		"name":      request.NamespacedName.Name,
+		"namespace": request.NamespacedName.Namespace,
 	})
 	logger.Info("attempting to reconcile gcp project")
 
@@ -126,14 +126,11 @@ func (t ctrl) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 		}
 
 		// @step: ensure the service account key in the project
-		key, err := t.EnsureServiceAccountKey(ctx, secret, org, project)
-		if err != nil {
+		if err := t.EnsureServiceAccountKey(ctx, secret, org, project); err != nil {
 			logger.WithError(err).Error("trying to ensure the service account key")
 
 			return reconcile.Result{}, err
 		}
-
-		// @step: we need to mint the GKE credentials for them
 
 		project.Status.Status = corev1.SuccessStatus
 
@@ -157,27 +154,10 @@ func (t ctrl) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	}
 
 	if err := t.mgr.GetClient().Status().Patch(ctx, project, client.MergeFrom(original)); err != nil {
-		logger.WithError(err).Error("updating the project status")
+		logger.WithError(err).Error("updating the gcp project claim status")
 
 		return reconcile.Result{}, err
 	}
 
 	return result, nil
-}
-
-// IsProjectClaimed checks if the project name has already been claimed by another team
-func (t ctrl) IsProjectClaimed(ctx context.Context, project *gcp.GCPProjectClaim) (bool, error) {
-	list := &gcp.GCPProjectClaimList{}
-
-	if err := t.mgr.GetClient().List(ctx, list, client.InNamespace("")); err != nil {
-		return false, err
-	}
-
-	for _, x := range list.Items {
-		if x.Name == project.Name && x.Namespace != project.Namespace {
-			return true, nil
-		}
-	}
-
-	return false, nil
 }

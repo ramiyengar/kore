@@ -3,20 +3,13 @@ package v1alpha1
 import (
 	core "github.com/appvia/kore/pkg/apis/core/v1"
 
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // GCPAdminProjectSpec defines the desired state of GCPAdminProject
 // +k8s:openapi-gen=true
 type GCPAdminProjectSpec struct {
-	// Project is the GCP project ID
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:Required
-	Project string `json:"project"`
-	// ProjectName is the GCP project name
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:Required
-	ProjectName string `json:"projectName"`
 	// ParentType is the type of parent this project has
 	// Valid types are: "organization", "folder", and "project"
 	// +kubebuilder:validation:Enum=organization;folder;project
@@ -30,24 +23,29 @@ type GCPAdminProjectSpec struct {
 	// e.g. '012345-567890-ABCDEF'
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Required
-	BillingAccountName string `json:"billingAccountName"`
-	// ServiceAccountName is the name used when creating the service account
+	BillingAccount string `json:"billingAccount"`
+	// ServiceAccount is the name used when creating the service account
 	// e.g. 'hub-admin'
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Required
-	ServiceAccountName string `json:"serviceAccountName"`
-	// Credentials is a reference to the gcp token object to use
-	// +kubebuilder:validation:Required
-	Credentials core.Ownership `json:"credentials"`
+	ServiceAccount string `json:"serviceAccount"`
+	// TokenRef is a reference to an ephemeral oauth token used provision the admin project
+	// +kubebuilder:validation:Optional
+	TokenRef *v1.SecretReference `json:"tokenRef,omitempty"`
+	// CredentialsRef is a reference to the credentials used to provision provision
+	// the projects - this is either created by dynamically from the oauth token or
+	// provided for us
+	// +kubebuilder:validation:Optional
+	CredentialsRef *v1.SecretReference `json:"credentialsRef"`
 }
 
 // GCPAdminProjectStatus defines the observed state of GCPAdminProject
 // +k8s:openapi-gen=true
 type GCPAdminProjectStatus struct {
-	// Conditions is a collection of conditions of errors
-	// +kubebuilder:validation:Optional
-	// +listType
-	Conditions []core.Condition `json:"conditions,omitempty"`
+	// Conditions is a set of components conditions
+	Conditions *core.Components `json:"conditions,omitempty"`
+	// Project is the GCP project ID
+	ProjectID string `json:"projectID,omitempty"`
 	// Status provides a overall status
 	Status core.Status `json:"status,omitempty"`
 }

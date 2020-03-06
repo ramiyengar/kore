@@ -91,20 +91,6 @@ func schema_pkg_apis_gcp_v1alpha1_GCPAdminProjectSpec(ref common.ReferenceCallba
 				Description: "GCPAdminProjectSpec defines the desired state of GCPAdminProject",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"project": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Project is the GCP project ID",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"projectName": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ProjectName is the GCP project name",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"parentType": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ParentType is the type of parent this project has Valid types are: \"organization\", \"folder\", and \"project\"",
@@ -119,32 +105,38 @@ func schema_pkg_apis_gcp_v1alpha1_GCPAdminProjectSpec(ref common.ReferenceCallba
 							Format:      "",
 						},
 					},
-					"billingAccountName": {
+					"billingAccount": {
 						SchemaProps: spec.SchemaProps{
 							Description: "BillingAccountName is the resource name of the billing account associated with the project e.g. '012345-567890-ABCDEF'",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
-					"serviceAccountName": {
+					"serviceAccount": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ServiceAccountName is the name used when creating the service account e.g. 'hub-admin'",
+							Description: "ServiceAccount is the name used when creating the service account e.g. 'hub-admin'",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
-					"credentials": {
+					"tokenRef": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Credentials is a reference to the gcp token object to use",
-							Ref:         ref("github.com/appvia/kore/pkg/apis/core/v1.Ownership"),
+							Description: "TokenRef is a reference to an ephemeral oauth token used provision the admin project",
+							Ref:         ref("k8s.io/api/core/v1.SecretReference"),
+						},
+					},
+					"credentialsRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CredentialsRef is a reference to the credentials used to provision provision the projects - this is either created by dynamically from the oauth token or provided for us",
+							Ref:         ref("k8s.io/api/core/v1.SecretReference"),
 						},
 					},
 				},
-				Required: []string{"project", "projectName", "parentType", "parentID", "billingAccountName", "serviceAccountName", "credentials"},
+				Required: []string{"parentType", "parentID", "billingAccount", "serviceAccount", "credentialsRef"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/appvia/kore/pkg/apis/core/v1.Ownership"},
+			"k8s.io/api/core/v1.SecretReference"},
 	}
 }
 
@@ -156,21 +148,23 @@ func schema_pkg_apis_gcp_v1alpha1_GCPAdminProjectStatus(ref common.ReferenceCall
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"conditions": {
-						VendorExtensible: spec.VendorExtensible{
-							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "",
-							},
-						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Conditions is a collection of conditions of errors",
+							Description: "Conditions is a set of components conditions",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/appvia/kore/pkg/apis/core/v1.Condition"),
+										Ref: ref("github.com/appvia/kore/pkg/apis/core/v1.Component"),
 									},
 								},
 							},
+						},
+					},
+					"projectID": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Project is the GCP project ID",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"status": {
@@ -184,7 +178,7 @@ func schema_pkg_apis_gcp_v1alpha1_GCPAdminProjectStatus(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			"github.com/appvia/kore/pkg/apis/core/v1.Condition"},
+			"github.com/appvia/kore/pkg/apis/core/v1.Component"},
 	}
 }
 
@@ -239,13 +233,6 @@ func schema_pkg_apis_gcp_v1alpha1_GCPProjectClaimSpec(ref common.ReferenceCallba
 				Description: "GCPProjectClaimSpec defines the desired state of GCPProjectClaim",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"serviceAccountName": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ServiceAccountName is an optional name of the service account provision - else we default to the name kore",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"organization": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Organization is a reference to the gcp admin project to use",
@@ -268,9 +255,15 @@ func schema_pkg_apis_gcp_v1alpha1_GCPProjectClaimStatus(ref common.ReferenceCall
 				Description: "GCPProjectClaimStatus defines the observed state of GCPProject",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"credentialRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CredentialRef is the reference to the credentials secret",
+							Ref:         ref("k8s.io/api/core/v1.SecretReference"),
+						},
+					},
 					"projectID": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ProjectID is the GCP project ID",
+							Description: "ProjectID is the GCP project id",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -296,10 +289,9 @@ func schema_pkg_apis_gcp_v1alpha1_GCPProjectClaimStatus(ref common.ReferenceCall
 						},
 					},
 				},
-				Required: []string{"status"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/appvia/kore/pkg/apis/core/v1.Component"},
+			"github.com/appvia/kore/pkg/apis/core/v1.Component", "k8s.io/api/core/v1.SecretReference"},
 	}
 }

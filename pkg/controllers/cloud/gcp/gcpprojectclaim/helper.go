@@ -22,8 +22,31 @@ package gcpprojectclaim
 import (
 	"context"
 
+	gcp "github.com/appvia/kore/pkg/apis/gcp/v1alpha1"
+
 	cloudresourcemanager "google.golang.org/api/cloudresourcemanager/v1"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+// CreateCredentialsSecret returns a project credentials secret
+func CreateCredentialsSecret(project *gcp.GCPProjectClaim, name string, key []byte) *v1.Secret {
+	return &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: project.Namespace,
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion:         gcp.GroupVersion.String(),
+				BlockOwnerDeletion: &isTrue,
+				Controller:         &isTrue,
+				Kind:               "GCPProjectClaim",
+				Name:               project.GetName(),
+				UID:                project.GetUID(),
+			}},
+		},
+		Data: map[string][]byte{"key": key},
+	}
+}
 
 // IsProject checks if the project exists
 func IsProject(ctx context.Context, client *cloudresourcemanager.Service, name string) (*cloudresourcemanager.Project, bool, error) {

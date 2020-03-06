@@ -152,7 +152,7 @@ func (u *teamHandler) Register(i kore.Interface, builder utils.PathBuilder) (*re
 	ws.Route(
 		ws.PUT("/{team}/invites/user/{user}").To(u.inviteUser).
 			Doc("Used to create an invitation for the team").
-			Param(ws.PathParameter("team", "The name of the team you are creating an invition")).
+			Param(ws.PathParameter("team", "The name of the team you are creating an invitation")).
 			Param(ws.PathParameter("user", "The name of the username of the user the invitation is for")).
 			Param(ws.QueryParameter("expire", "The expiration of the generated link").DefaultValue("1h")).
 			Returns(http.StatusOK, "Indicates the team invitation for the user has been successful", nil).
@@ -261,8 +261,45 @@ func (u *teamHandler) Register(i kore.Interface, builder utils.PathBuilder) (*re
 			DefaultReturns("A generic API error containing the cause of the error", Error{}),
 	)
 
-	// Kubernetes Credentials
+	// Secrets is used to provision a secret in the team
 
+	ws.Route(
+		ws.GET("/{team}/secrets").To(u.findKubernetesCredentials).
+			Param(ws.PathParameter("team", "Is the name of the team you are acting within")).
+			Doc("Used to return all team resources under the team").
+			Returns(http.StatusOK, "Contains the former definition from the kore", clustersv1.KubernetesCredentialsList{}).
+			DefaultReturns("A generic API error containing the cause of the error", Error{}),
+	)
+
+	ws.Route(
+		ws.GET("/{team}/secrets/{name}").To(u.findKubernetesCredential).
+			Param(ws.PathParameter("team", "Is the name of the team you are acting within")).
+			Param(ws.PathParameter("name", "Is name the of the kubernetes credentials you are acting upon")).
+			Doc("Used to return the cluster definition from the kore").
+			Returns(http.StatusOK, "Contains the former team definition from the kore", clustersv1.KubernetesCredentials{}).
+			DefaultReturns("A generic API error containing the cause of the error", Error{}),
+	)
+
+	ws.Route(
+		ws.PUT("/{team}/secrets/{name}").To(u.updateKubernetesCredential).
+			Param(ws.PathParameter("team", "Is the name of the team you are acting within")).
+			Param(ws.PathParameter("name", "Is name the of the kubernetes credentials you are acting upon")).
+			Doc("Used to return all team resources under the team").
+			Reads(clustersv1.KubernetesCredentials{}, "The definition for kubernetes credentials").
+			Returns(http.StatusOK, "Contains the definition from the kore", clustersv1.KubernetesCredentials{}).
+			DefaultReturns("A generic API error containing the cause of the error", Error{}),
+	)
+
+	ws.Route(
+		ws.DELETE("/{team}/secrets/{name}").To(u.deleteKubernetesCredential).
+			Param(ws.PathParameter("name", "Is name the of the kubernetes credentials you are acting upon")).
+			Param(ws.PathParameter("team", "Is the name of the team you are acting within")).
+			Doc("Used to return the cluster definition from the kore").
+			Returns(http.StatusOK, "Contains the former definition from the kore", clustersv1.KubernetesCredentials{}).
+			DefaultReturns("A generic API error containing the cause of the error", Error{}),
+	)
+
+	// Kubernetes Credentials
 	ws.Route(
 		ws.GET("/{team}/kubernetescredentials").To(u.findKubernetesCredentials).
 			Param(ws.PathParameter("team", "Is the name of the team you are acting within")).
